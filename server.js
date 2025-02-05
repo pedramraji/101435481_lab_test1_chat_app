@@ -107,6 +107,11 @@ app.post('/login', async (req, res) => {
 });
 
 
+
+
+
+
+
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -144,6 +149,13 @@ io.on('connection', (socket) => {
     console.log('User disconnected:', socket.id);
   });
 });
+
+
+
+
+
+
+
 
 // Start the server
 const PORT = process.env.PORT || 80;

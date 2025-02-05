@@ -73,6 +73,21 @@
       max-height: 400px;
       overflow-y: scroll;
     }
+
+    .message {
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+
+    .message .user-info {
+      font-weight: bold;
+    }
+
+    .message .datetime {
+      font-size: 0.85em;
+      color: gray;
+    }
   </style>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -98,6 +113,9 @@
     </div>
   </div>
 
+
+
+  
   <script>
     const socket = io();
     let currentRoom = null;
@@ -126,7 +144,14 @@
 
       socket.on('message', function(msg) {
         if (msg.room === currentRoom) {
-          $('#messages').append('<div>' + msg.from_user + ': ' + msg.message + '</div>');
+          const formattedDate = new Date(msg.date_sent).toLocaleString(); // format date
+          $('#messages').append(`
+            <div class="message">
+              <div class="user-info">${msg.firstname} ${msg.lastname}</div>
+              <div class="message-content">${msg.message}</div>
+              <div class="datetime">${formattedDate}</div>
+            </div>
+          `);
           $('#messages').scrollTop($('#messages')[0].scrollHeight);
         }
       });
@@ -141,11 +166,20 @@
       socket.on('previousMessages', function(messages) {
         $('#messages').empty();
         messages.forEach(function(msg) {
-          $('#messages').append('<div>' + msg.from_user + ': ' + msg.message + '</div>');
+          const formattedDate = new Date(msg.date_sent).toLocaleString(); // format date
+          $('#messages').append(`
+            <div class="message">
+              <div class="user-info">${msg.firstname} ${msg.lastname}</div>
+              <div class="message-content">${msg.message}</div>
+              <div class="datetime">${formattedDate}</div>
+            </div>
+          `);
         });
         $('#messages').scrollTop($('#messages')[0].scrollHeight);
       });
     }
   </script>
+
+
 </body>
 </html>
