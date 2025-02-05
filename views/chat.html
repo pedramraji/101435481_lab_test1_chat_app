@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Rooms</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Basic layout styles */
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Room list */
+    .room-list {
+      width: 100%;
+      height: 50px;
+      border-bottom: 1px solid #ddd;
+      padding: 10px;
+      background-color: #f8f9fa;
+    }
+
+    .room-item {
+      text-decoration: none;
+      color: #007bff;
+      font-weight: bold;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .room-item:hover {
+      background-color: #f0f0f0;
+      color: #0056b3;
+    }
+
+    .room-item.selected {
+      background-color: #007bff;
+      color: white;
+    }
+
+    /* Chat area */
+    .chat-area {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: #f8f9fa;
+    }
+
+    #message-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    #send-btn {
+      padding: 10px;
+      background-color: #007bff;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #send-btn:hover {
+      background-color: #0056b3;
+    }
+
+    #messages {
+      margin-bottom: 20px;
+      max-height: 400px;
+      overflow-y: scroll;
+    }
+  </style>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Room list -->
+    <div class="room-list">
+      <a href="/chat/devops" class="room-item">DevOps</a>
+      <a href="/chat/cloudcomputing" class="room-item">Cloud Computing</a>
+      <a href="/chat/covid19" class="room-item">Covid19</a>
+      <a href="/chat/sports" class="room-item">Sports</a>
+      <a href="/chat/nodejs" class="room-item">NodeJS</a>
+    </div>
+
+    <!-- Chat area -->
+    <div class="chat-area">
+      <h3 id="room-name">Select a room to chat</h3>
+      <div id="messages"></div>
+      <input type="text" id="message-input" placeholder="Type a message..." class="form-control">
+      <button id="send-btn" class="btn btn-primary mt-2">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    let currentRoom = null;
+    const token = localStorage.getItem('token');
+    const username = 'user';  // Replace with dynamic username if needed
+
+    $(document).ready(function() {
+      const room = window.location.pathname.split('/').pop();
+      if (room) {
+        joinRoom(room);
+      }
+
+      // Handle room selection and navigation
+      $('.room-item').click(function() {
+        $('.room-item').removeClass('selected');
+        $(this).addClass('selected');
+      });
+
+      $('#send-btn').click(function() {
+        const message = $('#message-input').val();
+        if (message && currentRoom) {
+          socket.emit('chatMessage', { from_user: username, message }, currentRoom);
+          $('#message-input').val('');
+        }
+      });
+
+      socket.on('message', function(msg) {
+        if (msg.room === currentRoom) {
+          $('#messages').append('<div>' + msg.from_user + ': ' + msg.message + '</div>');
+          $('#messages').scrollTop($('#messages')[0].scrollHeight);
+        }
+      });
+    });
+
+    function joinRoom(room) {
+      currentRoom = room;
+      $('#room-name').text(room.charAt(0).toUpperCase() + room.slice(1));
+      socket.emit('joinRoom', room);
+
+      // Request previous messages
+      socket.on('previousMessages', function(messages) {
+        $('#messages').empty();
+        messages.forEach(function(msg) {
+          $('#messages').append('<div>' + msg.from_user + ': ' + msg.message + '</div>');
+        });
+        $('#messages').scrollTop($('#messages')[0].scrollHeight);
+      });
+    }
+  </script>
+</body>
+</html>
