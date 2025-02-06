@@ -10,13 +10,14 @@
     .container {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      /* height: 100vh; */
+      width: 100%
     }
 
     /* Room list */
     .room-list {
       width: 100%;
-      height: 50px;
+      height: 70px;
       border-bottom: 1px solid #ddd;
       padding: 10px;
       background-color: #f8f9fa;
@@ -48,11 +49,25 @@
       background-color: #f8f9fa;
     }
 
-    #message-input {
+    .input-area {
+      padding: 10px;
+      background-color: #fff;
+      border-top: 1px solid #ddd;
+      position: fixed;
+      bottom: 5px;
       width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #message-input {
+      width: 85%;
+      height: 50px;
       padding: 10px;
       border: 1px solid #ccc;
       border-radius: 5px;
+      
     }
 
     #send-btn {
@@ -61,8 +76,12 @@
       border: none;
       color: white;
       border-radius: 5px;
+      width: 14%;
+      height: 50px;
       cursor: pointer;
     }
+
+
 
     #send-btn:hover {
       background-color: #0056b3;
@@ -88,13 +107,38 @@
       font-size: 0.85em;
       color: gray;
     }
-  </style>
 
+    /* User info section */
+    #user-info {
+      float: right;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      height: 40px;
+      width:150px;
+      display: flex;
+      align-items: center;
+      background-color: #67b1fa;
+     
+      border-radius: 10px;
+    }
+
+    #user-info img {
+      border-radius: 50%;
+      margin-right: 10px;
+      width: 30px;
+      height: 30px;
+    }
+
+    #user-info span {
+      font-weight: bold;
+    }
+  </style>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 </head>
 <body>
-  <div class="container">
+  <div class="">
     <!-- Room list -->
     <div class="room-list">
       <a href="/chat/devops" class="room-item">DevOps</a>
@@ -102,49 +146,114 @@
       <a href="/chat/covid19" class="room-item">Covid19</a>
       <a href="/chat/sports" class="room-item">Sports</a>
       <a href="/chat/nodejs" class="room-item">NodeJS</a>
+
+          <!-- User info (username and avatar) -->
+    <div id="user-info">
+      <img id="user-avatar" src="" alt="Avatar">
+      <span id="username">Loading...</span>
     </div>
+
+    </div>
+
+
 
     <!-- Chat area -->
     <div class="chat-area">
       <h3 id="room-name">Select a room to chat</h3>
       <div id="messages"></div>
+
+
+    <div class="input-area">
       <input type="text" id="message-input" placeholder="Type a message..." class="form-control">
       <button id="send-btn" class="btn btn-primary mt-2">Send</button>
     </div>
   </div>
 
+    </div>
+  </div>
 
-
-  
   <script>
     const socket = io();
     let currentRoom = null;
     const token = localStorage.getItem('token');
-    const username = 'user';  // Replace with dynamic username if needed
+    let userDetails = {};
 
-    $(document).ready(function() {
+    function fetchUserDetails() {
+      if (!token) {
+        console.log("No token found, please log in.");
+        return;
+      }
+
+      $.ajax({
+        url: '/user/details',
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        success: function(response) {
+          if (response.success) {
+            userDetails = response.user; 
+            $('#username').text(userDetails.firstname + ' ' + userDetails.lastname);
+            $('#user-avatar').attr('src', `https://www.avatar.com/${userDetails.username}`);
+          } else {
+            console.log("User not found.");
+          }
+        },
+        error: function(err) {
+          console.error("Error fetching user details:", err);
+        }
+      });
+    }
+
+    $(document).ready(function () {
+      fetchUserDetails(); 
+
       const room = window.location.pathname.split('/').pop();
       if (room) {
         joinRoom(room);
       }
 
-      // Handle room selection and navigation
-      $('.room-item').click(function() {
+      $('.room-item').click(function () {
         $('.room-item').removeClass('selected');
         $(this).addClass('selected');
       });
 
-      $('#send-btn').click(function() {
+      // Handle sending message
+      $('#send-btn').click(function () {
         const message = $('#message-input').val();
         if (message && currentRoom) {
-          socket.emit('chatMessage', { from_user: username, message }, currentRoom);
+
+          socket.emit('chatMessage', {
+            from_user: userDetails.username,
+            firstname: userDetails.firstname,
+            lastname: userDetails.lastname,
+            message: message
+          }, currentRoom);
           $('#message-input').val('');
         }
       });
 
-      socket.on('message', function(msg) {
+
+      // Handle sending message when pressing Enter
+      $('#message-input').keypress(function (e) {
+        if (e.which === 13) {  // Enter key
+          const message = $('#message-input').val();
+          if (message && currentRoom) {
+            socket.emit('chatMessage', {
+              from_user: userDetails.username,
+              firstname: userDetails.firstname,
+              lastname: userDetails.lastname,
+              message: message
+            }, currentRoom);
+            $('#message-input').val('');
+          }
+        }
+      });
+
+
+      socket.on('message', function (msg) {
         if (msg.room === currentRoom) {
-          const formattedDate = new Date(msg.date_sent).toLocaleString(); // format date
+          const formattedDate = new Date(msg.date_sent).toLocaleString(); // Format date
           $('#messages').append(`
             <div class="message">
               <div class="user-info">${msg.firstname} ${msg.lastname}</div>
@@ -162,11 +271,10 @@
       $('#room-name').text(room.charAt(0).toUpperCase() + room.slice(1));
       socket.emit('joinRoom', room);
 
-      // Request previous messages
-      socket.on('previousMessages', function(messages) {
+      socket.on('previousMessages', function (messages) {
         $('#messages').empty();
-        messages.forEach(function(msg) {
-          const formattedDate = new Date(msg.date_sent).toLocaleString(); // format date
+        messages.forEach(function (msg) {
+          const formattedDate = new Date(msg.date_sent).toLocaleString(); // Format date
           $('#messages').append(`
             <div class="message">
               <div class="user-info">${msg.firstname} ${msg.lastname}</div>
@@ -179,7 +287,6 @@
       });
     }
   </script>
-
-
+  
 </body>
 </html>

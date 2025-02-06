@@ -26,8 +26,48 @@ mongoose.connect(uri, {
   console.log('Error connecting to MongoDB Atlas:', err);
 });
 
+
+
+
 app.use(express.static('public'));
 app.use(express.json());
+
+
+
+
+function verifyToken(req, res, next) {
+  const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
+  if (!token) return res.status(403).send("Token is required");
+
+  jwt.verify(token, 'secret', (err, decoded) => {
+    if (err) return res.status(500).send("Failed to authenticate token");
+    req.user = decoded;
+    next();
+  });
+}
+
+
+app.get('/user/details', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.user.username });
+    if (!user) return res.status(404).send("User not found");
+
+    res.json({
+      success: true,
+      user: {
+        username: user.username,
+        firstname: user.firstname,
+        lastname: user.lastname
+      }
+    });
+  } catch (error) {
+    res.status(500).send("Error fetching user details");
+  }
+});
+
+
+
+
 
 // Routes for Signup, Login, Chat, and Rooms
 app.get('/', (req, res) => {
